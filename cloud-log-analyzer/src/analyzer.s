@@ -8,7 +8,9 @@ Variante: C (detectar primer 503)
 Descripción:
 Lee códigos HTTP desde stdin y termina inmediatamente
 al detectar el primer código 503.
+*/
 
+/*
 ========================================
 PSEUDOCÓDIGO – VARIANTE C
 Detectar el primer evento crítico (503)
