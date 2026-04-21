@@ -1,4 +1,4 @@
-# /*
+ /*
 
 Programador: José Ramón Anguiano Rivas
 Curso: Lenguajes de Interfaz
