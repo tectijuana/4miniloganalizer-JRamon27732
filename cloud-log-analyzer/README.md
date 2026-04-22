@@ -1,34 +1,16 @@
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/a44bb0d7-30f9-4fff-95bf-f08277476255" />
+# ☁️ Mini Cloud Log Analyzer (ARM64 Assembly)
 
+## 📌 Información General
 
-# Mini Cloud Log Analyzer (Bash + ARM64 + GNU Make)
-
-Práctica universitaria orientada a estudiantes principiantes para reforzar fundamentos de:
-- Ensamblador **ARM64 (AArch64 Linux)**,
-- uso de **syscalls Linux** sin libc,
-- automatización con **Bash**,
-- y flujo de trabajo con **GitHub Classroom**.
-
----
-
-## 1) Enunciado formal de la práctica
-
-Implemente un analizador de logs de servidor en ARM64 Assembly que reciba por `stdin` una secuencia de códigos HTTP (un entero por línea), y procese la información según la variante asignada por el docente.
-
-La versión base proporcionada (Variante A) ya compila y ejecuta, y cuenta:
-- códigos de éxito **2xx**,
-- errores de cliente **4xx**,
-- errores de servidor **5xx**.
-
-Ejecución esperada:
-
-```bash
-cat logs.txt | ./analyzer
-```
+* **Alumno:** José Ramón Anguiano Rivas
+* **Curso:** Lenguajes de Interfaz
+* **Práctica:** Mini Cloud Log Analyzer
+* **Arquitectura:** ARM64 (AArch64)
+* **Sistema:** Linux (Ubuntu ARM)
 
 ---
 
-## 2) Objetivos de aprendizaje
+## 🎯 Objetivo
 
 Al finalizar esta práctica, el estudiante será capaz de:
 1. Compilar y enlazar un programa ARM64 sin C ni libc.
@@ -39,120 +21,142 @@ Al finalizar esta práctica, el estudiante será capaz de:
 
 ---
 
-## 3) Estructura del repositorio
+## 🔀 Variante C – Detección de evento crítico (503)
 
-```text
-cloud-log-analyzer/
-├── README.md
-├── Makefile
-├── run.sh
-├── src/
-│   └── analyzer.s
-├── data/
-│   ├── logs_A.txt
-│   ├── logs_B.txt
-│   ├── logs_C.txt
-│   ├── logs_D.txt
-│   └── logs_E.txt
-├── tests/
-│   ├── test.sh
-│   └── expected_outputs.txt
-└── instructor/
-    └── VARIANTES.md
+Esta variante consiste en:
+
+> Detectar el primer código HTTP **503 (Service Unavailable)** y finalizar inmediatamente la ejecución del programa.
+
+---
+
+## Lógica implementada para la variante C
+
+```asm
+verificar_503:
+
+    mov x1, #503
+    cmp x0, x1
+    b.ne fin_verificacion
+
+    // imprimir mensaje crítico
+    adrp x0, msg_critico
+    add x0, x0, :lo12:msg_critico
+
+    // calcular longitud y escribir
+    mov x1, x0
+    mov x2, #0
+
+len_loop:
+    ldrb w3, [x1, x2]
+    cbz w3, len_done
+    add x2, x2, #1
+    b len_loop
+
+len_done:
+    mov x1, x0
+    mov x0, #STDOUT_FD
+    mov x8, #SYS_write
+    svc #0
+
+    // salida inmediata
+    mov x0, #0
+    mov x8, #SYS_exit
+    svc #0
+
+fin_verificacion:
+    ret
 ```
 
+    
 ---
 
-## 4) Requisitos técnicos
+## 🧠 Descripción del funcionamiento
+Implemente un analizador de logs de servidor en ARM64 Assembly que reciba por `stdin` una secuencia de códigos HTTP (un entero por línea), y procese la información según la variante asignada por el docente.
 
-- Sistema objetivo: **AWS Ubuntu 24 ARM64**.
-- Arquitectura: **AArch64 Linux**.
-- Ensamblador: **GNU assembler** (o equivalente compatible para construir en entorno alterno).
-- Restricciones:
-  - Sin libc.
-  - Sin lenguaje C.
-  - Solo syscalls Linux + Bash + Make.
+El programa:
 
----
+1. Lee datos desde `stdin` en bloques de bytes.
+2. Procesa la entrada **carácter por carácter**.
+3. Construye números enteros (códigos HTTP) a partir de dígitos.
+4. Detecta el final de cada número mediante el carácter `\n`.
+5. Verifica si el código es **503**:
 
-## 5) Flujo sugerido en GitHub Classroom
-
-1. El docente crea la actividad en GitHub Classroom.
-2. Cada estudiante acepta su repositorio individual.
-3. Clona su repositorio en instancia AWS ARM64.
-4. Implementa su variante en `src/analyzer.s`.
-5. Ejecuta:
-   - `make`
-   - `make run`
-   - `make test`
-6. Hace commit/push y entrega el enlace del repositorio.
+   * ✔ Si lo es → imprime `"CRITICO 503"` y termina.
+   * ❌ Si no → continúa procesando.
+6. Si no se detecta ningún 503, el programa termina sin salida.
 
 ---
 
-## 6) Instrucciones de uso en AWS Ubuntu 24 ARM64
+## ⚙️ Tecnologías utilizadas
 
-### 6.1 Compilar
+* Ensamblador **ARM64 (AArch64)**
+* Syscalls de Linux:
+
+  * `read` (63)
+  * `write` (64)
+  * `exit` (93)
+
+---
+## 🎥 Video en Asciinema del proceso de compilación y ejecución
+
+
+👉 https://asciinema.org/a/amLLXxgzopxvQ4RM
+
+
+[![asciicast](https://asciinema.org/a/amLLXxgzopxvQ4RM.svg)](https://asciinema.org/a/amLLXxgzopxvQ4RM)
+
+
+## 🚀 Compilación
 
 ```bash
-make
+as -o analyzer.o src/analyzer.s
+ld -o analyzer analyzer.o
 ```
+<img width="1001" height="155" alt="Captura de pantalla 2026-04-21 171619" src="https://github.com/user-attachments/assets/4a780b46-7f90-4b78-91ee-8eb9f64adbf9" />
 
-### 6.2 Ejecutar ejemplo base
+---
+
+## ▶️ Ejecución
 
 ```bash
-make run
+cat data/logs_C.txt | ./analyzer
+```
+<img width="1246" height="73" alt="Captura de pantalla 2026-04-21 172145" src="https://github.com/user-attachments/assets/dbf86407-3979-4f99-b7c3-47afed19eae0" />
+
+---
+
+## 📤 Salida esperada
+
+```
+CRITICO 503
 ```
 
-### 6.3 Ejecutar pruebas
+👉 El programa finaliza inmediatamente después de detectar el código 503.
 
-```bash
-make test
+
+---
+
+## 🧩 Pseudocódigo
+
 ```
-
-### 6.4 Limpiar artefactos
-
-```bash
-make clean
+leer entrada por bloques
+para cada byte:
+    si es dígito:
+        construir número
+    si es '\n':
+        si número == 503:
+            imprimir mensaje
+            terminar programa
+        reiniciar número
 ```
 
 ---
 
-## 7) Variantes de práctica
+## 🧠 Conclusión
 
-- **A**: contar 2xx, 4xx, 5xx.
-- **B**: encontrar código más frecuente.
-- **C**: detectar primer 503.
-- **D**: detectar 3 errores consecutivos.
-- **E**: calcular health score.
-
-Detalles de asignación docente: ver `instructor/VARIANTES.md`.
+Una vez concluida la práctica pudimos comprender el manejo  de la entrada/salida a bajo nivel en ARM64, además de esto, pudimos analizar el control de flujo sin el uso de los lenguajes de alto nivel.
 
 ---
 
-## 8) Rúbrica propuesta
 
-Toda solución debe tener:
-1. Encabezado del programador
-2. Pseudocódigo
-3. Código ARM64 comentado
 
-| Criterio | Ponderación |
-|---|---:|
-| Correctitud funcional de la variante asignada | 40% |
-| Dominio técnico de ARM64 + syscalls | 25% |
-| Pruebas automatizadas y reproducibilidad | 20% |
-| Calidad de documentación y claridad de código | 15% |
-
-### Criterios de descuento sugeridos
-- No compila en ARM64: hasta -40%.
-- Usa C/libc: evaluación inválida por incumplir restricción.
-- Sin evidencia de pruebas: hasta -20%. Utiliar Asciinema (con su nombre y preferente), o tambien LOOM.com compartido link
-
----
-
-## 9) Notas para estudiantes
-
-- Lean y entiendan el pseudocódigo al inicio de `src/analyzer.s`.
-- Mantengan comentarios técnicos claros y breves.
-- Trabajen incrementalmente: primero parser, luego lógica de variante, luego pruebas.
-- Si trabajan en host x86_64, se recomienda emulación con `qemu-aarch64` o compilar/ejecutar directamente en AWS ARM64.

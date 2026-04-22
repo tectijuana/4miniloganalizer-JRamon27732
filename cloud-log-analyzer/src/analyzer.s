@@ -1,29 +1,58 @@
-/*
-Autor: Equipo docente (base para estudiantes)
-Curso: Arquitectura de Computadoras / Ensamblador ARM64
-Práctica: Mini Cloud Log Analyzer (Bash + ARM64 + GNU Make)
-Fecha: 20 de abril de 2026
-Descripción: Lee códigos HTTP desde stdin (uno por línea), clasifica 2xx/4xx/5xx
-             y muestra un reporte en español usando únicamente syscalls Linux.
-*/
+// Programador: José Ramón Anguiano Rivas
+// Curso: Lenguajes de Interfaz
+// Práctica: Mini Cloud Log Analyzer
+// Variante: C (detectar primer 503)
 
-/*
-PSEUDOCÓDIGO (guía didáctica)
-1) Inicializar contadores en 0: exitos_2xx, errores_4xx, errores_5xx.
-2) Mientras haya bytes por leer en stdin:
-   2.1) Leer un bloque con syscall read.
-   2.2) Recorrer byte por byte.
-   2.3) Si el byte es dígito, acumular numero_actual = numero_actual * 10 + dígito.
-   2.4) Si el byte es '\n', clasificar numero_actual y reiniciar acumulador.
-3) Si el flujo termina sin '\n' final y hay número pendiente, clasificarlo.
-4) Imprimir resultados en español con syscall write.
-5) Salir con código 0.
+// Descripción:
+// Lee códigos HTTP desde stdin y termina inmediatamente
+// al detectar el primer código 503.
 
-TODO (extensión para estudiantes):
-- Agregar manejo de códigos no válidos y contarlos.
-- Implementar variantes B, C, D y E en ramas separadas.
-- Mostrar porcentaje de éxito respecto al total.
-*/
+
+// ========================================
+// PSEUDOCÓDIGO – VARIANTE C
+// Detectar el primer evento crítico (503)
+// =======================================
+
+// 1. Inicializar:
+//   numero_actual ← 0
+//   tiene_digitos ← falso
+
+// 2. Mientras haya datos en stdin:
+
+//   2.1 Leer un bloque de bytes
+
+//   2.2 Para cada byte del bloque:
+
+
+//   a) Si el byte es un dígito ('0' a '9'):
+//        numero_actual ← numero_actual * 10 + valor_digito
+//        tiene_digitos ← verdadero
+
+//   b) Si el byte es salto de línea ('\n'):
+
+//        Si tiene_digitos es verdadero:
+
+//             VERIFICAR EVENTO CRÍTICO
+//            Si numero_actual == 503:
+//                imprimir "CRITICO 503"
+//                terminar programa inmediatamente
+
+//        Reiniciar:
+//            numero_actual ← 0
+//            tiene_digitos ← falso
+
+//   c) Si el byte no es dígito ni salto de línea:
+//        ignorarlo
+
+// 3. Fin del archivo (EOF):
+
+//   Si tiene_digitos es verdadero:
+//   Si numero_actual == 503:
+//   imprimir "CRITICO 503"
+//   terminar programa
+
+// 4. Terminar programa (sin imprimir nada si no hubo 503)
+
 
 .equ SYS_read,   63
 .equ SYS_write,  64
@@ -32,234 +61,133 @@ TODO (extensión para estudiantes):
 .equ STDOUT_FD,   1
 
 .section .bss
-    .align 4
-buffer:         .skip 4096
-num_buf:        .skip 32      // Buffer para imprimir enteros en texto
+.align 4
+buffer:     .skip 4096
 
 .section .data
-msg_titulo:         .asciz "=== Mini Cloud Log Analyzer ===\n"
-msg_2xx:            .asciz "Éxitos 2xx: "
-msg_4xx:            .asciz "Errores 4xx: "
-msg_5xx:            .asciz "Errores 5xx: "
-msg_fin_linea:      .asciz "\n"
+msg_critico:    .asciz "CRITICO 503\n"
 
 .section .text
 .global _start
 
 _start:
-    // Contadores principales
-    mov x19, #0                  // exitos_2xx
-    mov x20, #0                  // errores_4xx
-    mov x21, #0                  // errores_5xx
 
-    // Estado del parser
-    mov x22, #0                  // numero_actual
-    mov x23, #0                  // tiene_digitos (0/1)
+
+// estado del parser
+mov x22, #0      // numero_actual
+mov x23, #0      // flag tiene_digitos
+
 
 leer_bloque:
-    // read(STDIN_FD, buffer, 4096)
-    mov x0, #STDIN_FD
-    adrp x1, buffer
-    add x1, x1, :lo12:buffer
-    mov x2, #4096
-    mov x8, #SYS_read
-    svc #0
+mov x0, #STDIN_FD
+adrp x1, buffer
+add x1, x1, :lo12:buffer
+mov x2, #4096
+mov x8, #SYS_read
+svc #0
 
-    // x0 = bytes leídos
-    cmp x0, #0
-    beq fin_lectura               // EOF
-    blt salida_error              // error de lectura
 
-    mov x24, #0                   // índice i = 0
-    mov x25, x0                   // total bytes en bloque
+cmp x0, #0
+beq fin_programa
+blt salir_error
+
+mov x24, #0      // índice
+mov x25, x0      // bytes leídos
+
 
 procesar_byte:
-    cmp x24, x25
-    b.ge leer_bloque
+cmp x24, x25
+b.ge leer_bloque
 
-    adrp x1, buffer
-    add x1, x1, :lo12:buffer
-    ldrb w26, [x1, x24]
-    add x24, x24, #1
 
-    // Si es salto de línea, clasificar número actual
-    cmp w26, #10                  // '\n'
-    b.eq fin_numero
+adrp x1, buffer
+add x1, x1, :lo12:buffer
+ldrb w26, [x1, x24]
+add x24, x24, #1
 
-    // Si es dígito ('0'..'9'), acumular
-    cmp w26, #'0'
-    b.lt procesar_byte
-    cmp w26, #'9'
-    b.gt procesar_byte
+// si es '\n'
+cmp w26, #10
+b.eq fin_numero
 
-    // numero_actual = numero_actual * 10 + (byte - '0')
-    mov x27, #10
-    mul x22, x22, x27
-    sub w26, w26, #'0'
-    uxtw x26, w26
-    add x22, x22, x26
-    mov x23, #1
-    b procesar_byte
+// si no es dígito, ignorar
+cmp w26, #'0'
+b.lt procesar_byte
+cmp w26, #'9'
+b.gt procesar_byte
+
+// numero_actual = numero_actual * 10 + digito
+mov x27, #10
+mul x22, x22, x27
+sub w26, w26, #'0'
+uxtw x26, w26
+add x22, x22, x26
+mov x23, #1
+
+b procesar_byte
+
 
 fin_numero:
-    // Solo clasificar si efectivamente hubo al menos un dígito
-    cbz x23, reiniciar_numero
+cbz x23, reset_num
 
-    mov x0, x22
-    bl clasificar_codigo
 
-reiniciar_numero:
-    mov x22, #0
-    mov x23, #0
-    b procesar_byte
+mov x0, x22
+bl verificar_503
 
-fin_lectura:
-    // EOF con número pendiente (sin '\n' final)
-    cbz x23, imprimir_reporte
-    mov x0, x22
-    bl clasificar_codigo
 
-imprimir_reporte:
-    // Encabezado
-    adrp x0, msg_titulo
-    add x0, x0, :lo12:msg_titulo
-    bl write_cstr
+reset_num:
+mov x22, #0
+mov x23, #0
+b procesar_byte
 
-    // "Éxitos 2xx: " + valor + "\n"
-    adrp x0, msg_2xx
-    add x0, x0, :lo12:msg_2xx
-    bl write_cstr
-    mov x0, x19
-    bl print_uint
-    adrp x0, msg_fin_linea
-    add x0, x0, :lo12:msg_fin_linea
-    bl write_cstr
+fin_programa:
+// EOF sin encontrar 503
+mov x0, #0
+mov x8, #SYS_exit
+svc #0
 
-    // "Errores 4xx: " + valor + "\n"
-    adrp x0, msg_4xx
-    add x0, x0, :lo12:msg_4xx
-    bl write_cstr
-    mov x0, x20
-    bl print_uint
-    adrp x0, msg_fin_linea
-    add x0, x0, :lo12:msg_fin_linea
-    bl write_cstr
+salir_error:
+mov x0, #1
+mov x8, #SYS_exit
+svc #0
 
-    // "Errores 5xx: " + valor + "\n"
-    adrp x0, msg_5xx
-    add x0, x0, :lo12:msg_5xx
-    bl write_cstr
-    mov x0, x21
-    bl print_uint
-    adrp x0, msg_fin_linea
-    add x0, x0, :lo12:msg_fin_linea
-    bl write_cstr
+// =======================================
+// verificar_503(x0 = codigo HTTP)
+// =======================================
+verificar_503:
 
-salida_ok:
-    mov x0, #0
-    mov x8, #SYS_exit
-    svc #0
 
-salida_error:
-    mov x0, #1
-    mov x8, #SYS_exit
-    svc #0
+mov x1, #503
+cmp x0, x1
+b.ne fin_verificacion
 
-// -----------------------------------------------------------------------------
-// clasificar_codigo(x0 = codigo_http)
-// Incrementa el contador correspondiente: 2xx, 4xx o 5xx.
-// -----------------------------------------------------------------------------
-clasificar_codigo:
-    cmp x0, #200
-    b.lt clasificar_fin
-    cmp x0, #299
-    b.gt revisar_4xx
-    add x19, x19, #1
-    b clasificar_fin
+// imprimir mensaje crítico
+adrp x0, msg_critico
+add x0, x0, :lo12:msg_critico
 
-revisar_4xx:
-    cmp x0, #400
-    b.lt clasificar_fin
-    cmp x0, #499
-    b.gt revisar_5xx
-    add x20, x20, #1
-    b clasificar_fin
+// calcular longitud y escribir
+mov x1, x0
+mov x2, #0
 
-revisar_5xx:
-    cmp x0, #500
-    b.lt clasificar_fin
-    cmp x0, #599
-    b.gt clasificar_fin
-    add x21, x21, #1
 
-clasificar_fin:
-    ret
+len_loop:
+ldrb w3, [x1, x2]
+cbz w3, len_done
+add x2, x2, #1
+b len_loop
 
-// -----------------------------------------------------------------------------
-// write_cstr(x0 = puntero a string terminado en '\0')
-// Imprime una cadena C usando syscall write.
-// -----------------------------------------------------------------------------
-write_cstr:
-    mov x9, x0                    // guardar puntero inicial
-    mov x10, #0                   // longitud = 0
+len_done:
+mov x1, x0
+mov x0, #STDOUT_FD
+mov x8, #SYS_write
+svc #0
 
-wc_len_loop:
-    ldrb w11, [x9, x10]
-    cbz w11, wc_len_done
-    add x10, x10, #1
-    b wc_len_loop
 
-wc_len_done:
-    mov x1, x9                    // buffer
-    mov x2, x10                   // tamaño
-    mov x0, #STDOUT_FD            // fd
-    mov x8, #SYS_write
-    svc #0
-    ret
+// salir inmediatamente
+mov x0, #0
+mov x8, #SYS_exit
+svc #0
 
-// -----------------------------------------------------------------------------
-// print_uint(x0 = entero sin signo)
-// Convierte a ASCII en base 10 e imprime con syscall write.
-// -----------------------------------------------------------------------------
-print_uint:
-    // Caso especial: número 0
-    cbnz x0, pu_convertir
-    adrp x1, num_buf
-    add x1, x1, :lo12:num_buf
-    mov w2, #'0'
-    strb w2, [x1]
-    mov x0, #STDOUT_FD
-    mov x2, #1
-    mov x8, #SYS_write
-    svc #0
-    ret
 
-pu_convertir:
-    adrp x12, num_buf
-    add x12, x12, :lo12:num_buf
-    add x12, x12, #31             // escribir de atrás hacia adelante
-    mov w13, #0
-    strb w13, [x12]               // terminador no indispensable, útil para depurar
+fin_verificacion:
+ret
 
-    mov x14, #10
-    mov x15, #0                   // contador de dígitos
-
-pu_loop:
-    udiv x16, x0, x14             // x16 = x0 / 10
-    msub x17, x16, x14, x0        // x17 = x0 - (x16*10) => residuo
-    add x17, x17, #'0'
-
-    sub x12, x12, #1
-    strb w17, [x12]
-    add x15, x15, #1
-
-    mov x0, x16
-    cbnz x0, pu_loop
-
-    // write(STDOUT_FD, x12, x15)
-    mov x1, x12
-    mov x2, x15
-    mov x0, #STDOUT_FD
-    mov x8, #SYS_write
-    svc #0
-    ret
