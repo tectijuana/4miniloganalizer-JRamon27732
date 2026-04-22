@@ -72,11 +72,11 @@ msg_critico:    .asciz "CRITICO 503\n"
 
 _start:
 
-```
+
 // estado del parser
 mov x22, #0      // numero_actual
 mov x23, #0      // flag tiene_digitos
-```
+
 
 leer_bloque:
 mov x0, #STDIN_FD
@@ -86,20 +86,20 @@ mov x2, #4096
 mov x8, #SYS_read
 svc #0
 
-```
+
 cmp x0, #0
 beq fin_programa
 blt salir_error
 
 mov x24, #0      // índice
 mov x25, x0      // bytes leídos
-```
+
 
 procesar_byte:
 cmp x24, x25
 b.ge leer_bloque
 
-```
+
 adrp x1, buffer
 add x1, x1, :lo12:buffer
 ldrb w26, [x1, x24]
@@ -124,15 +124,15 @@ add x22, x22, x26
 mov x23, #1
 
 b procesar_byte
-```
+
 
 fin_numero:
 cbz x23, reset_num
 
-```
+
 mov x0, x22
 bl verificar_503
-```
+
 
 reset_num:
 mov x22, #0
@@ -155,7 +155,7 @@ svc #0
 // =======================================
 verificar_503:
 
-```
+
 mov x1, #503
 cmp x0, x1
 b.ne fin_verificacion
@@ -167,7 +167,7 @@ add x0, x0, :lo12:msg_critico
 // calcular longitud y escribir
 mov x1, x0
 mov x2, #0
-```
+
 
 len_loop:
 ldrb w3, [x1, x2]
@@ -181,12 +181,12 @@ mov x0, #STDOUT_FD
 mov x8, #SYS_write
 svc #0
 
-```
+
 // salir inmediatamente
 mov x0, #0
 mov x8, #SYS_exit
 svc #0
-```
+
 
 fin_verificacion:
 ret
