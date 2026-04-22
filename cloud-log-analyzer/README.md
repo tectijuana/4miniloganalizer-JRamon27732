@@ -29,6 +29,47 @@ Esta variante consiste en:
 
 ---
 
+## Lógica implementada para la variante C
+
+```asm
+verificar_503:
+
+    mov x1, #503
+    cmp x0, x1
+    b.ne fin_verificacion
+
+    // imprimir mensaje crítico
+    adrp x0, msg_critico
+    add x0, x0, :lo12:msg_critico
+
+    // calcular longitud y escribir
+    mov x1, x0
+    mov x2, #0
+
+len_loop:
+    ldrb w3, [x1, x2]
+    cbz w3, len_done
+    add x2, x2, #1
+    b len_loop
+
+len_done:
+    mov x1, x0
+    mov x0, #STDOUT_FD
+    mov x8, #SYS_write
+    svc #0
+
+    // salida inmediata
+    mov x0, #0
+    mov x8, #SYS_exit
+    svc #0
+
+fin_verificacion:
+    ret
+```
+
+    
+---
+
 ## 🧠 Descripción del funcionamiento
 Implemente un analizador de logs de servidor en ARM64 Assembly que reciba por `stdin` una secuencia de códigos HTTP (un entero por línea), y procese la información según la variante asignada por el docente.
 
