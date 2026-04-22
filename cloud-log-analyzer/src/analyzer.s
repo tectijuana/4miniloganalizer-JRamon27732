@@ -1,62 +1,58 @@
-/*
+// Programador: José Ramón Anguiano Rivas
+// Curso: Lenguajes de Interfaz
+// Práctica: Mini Cloud Log Analyzer
+// Variante: C (detectar primer 503)
 
-Programador: José Ramón Anguiano Rivas
-Curso: Lenguajes de Interfaz
-Práctica: Mini Cloud Log Analyzer
-Variante: C (detectar primer 503)
+// Descripción:
+// Lee códigos HTTP desde stdin y termina inmediatamente
+// al detectar el primer código 503.
 
-Descripción:
-Lee códigos HTTP desde stdin y termina inmediatamente
-al detectar el primer código 503.
-*/
 
-/*
-========================================
-PSEUDOCÓDIGO – VARIANTE C
-Detectar el primer evento crítico (503)
-=======================================
+// ========================================
+// PSEUDOCÓDIGO – VARIANTE C
+// Detectar el primer evento crítico (503)
+// =======================================
 
-1. Inicializar:
-   numero_actual ← 0
-   tiene_digitos ← falso
+// 1. Inicializar:
+//   numero_actual ← 0
+//   tiene_digitos ← falso
 
-2. Mientras haya datos en stdin:
+// 2. Mientras haya datos en stdin:
 
-   2.1 Leer un bloque de bytes
+//   2.1 Leer un bloque de bytes
 
-   2.2 Para cada byte del bloque:
+//   2.2 Para cada byte del bloque:
 
-   ```
-   a) Si el byte es un dígito ('0' a '9'):
-        numero_actual ← numero_actual * 10 + valor_digito
-        tiene_digitos ← verdadero
 
-   b) Si el byte es salto de línea ('\n'):
+//   a) Si el byte es un dígito ('0' a '9'):
+//        numero_actual ← numero_actual * 10 + valor_digito
+//        tiene_digitos ← verdadero
 
-        Si tiene_digitos es verdadero:
+//   b) Si el byte es salto de línea ('\n'):
 
-            // VERIFICAR EVENTO CRÍTICO
-            Si numero_actual == 503:
-                imprimir "CRITICO 503"
-                terminar programa inmediatamente
+//        Si tiene_digitos es verdadero:
 
-        Reiniciar:
-            numero_actual ← 0
-            tiene_digitos ← falso
+//             VERIFICAR EVENTO CRÍTICO
+//            Si numero_actual == 503:
+//                imprimir "CRITICO 503"
+//                terminar programa inmediatamente
 
-   c) Si el byte no es dígito ni salto de línea:
-        ignorarlo
-   ```
+//        Reiniciar:
+//            numero_actual ← 0
+//            tiene_digitos ← falso
 
-3. Fin del archivo (EOF):
+//   c) Si el byte no es dígito ni salto de línea:
+//        ignorarlo
 
-   Si tiene_digitos es verdadero:
-   Si numero_actual == 503:
-   imprimir "CRITICO 503"
-   terminar programa
+// 3. Fin del archivo (EOF):
 
-4. Terminar programa (sin imprimir nada si no hubo 503)
-*/
+//   Si tiene_digitos es verdadero:
+//   Si numero_actual == 503:
+//   imprimir "CRITICO 503"
+//   terminar programa
+
+// 4. Terminar programa (sin imprimir nada si no hubo 503)
+
 
 .equ SYS_read,   63
 .equ SYS_write,  64
